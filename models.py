@@ -467,16 +467,16 @@ class Generator_Harm(torch.nn.Module):
         amplitudes = remove_above_nyquist(
             amplitudes,
             pitch,
-            self.hps.data.sample_rate,
+            self.hps.data.sampling_rate,
         )
         amplitudes /= amplitudes.sum(-1, keepdim=True)
         amplitudes *= total_amp
 
-        amplitudes = upsample(amplitudes, self.hps.data.hop_size)
-        pitch = upsample(pitch, self.hps.data.hop_size)
+        amplitudes = upsample(amplitudes, self.hps.data.hop_length)
+        pitch = upsample(pitch, self.hps.data.hop_length)
 
         n_harmonic = amplitudes.shape[-1]
-        omega = torch.cumsum(2 * math.pi * pitch / self.hps.data.sample_rate, 1)
+        omega = torch.cumsum(2 * math.pi * pitch / self.hps.data.sampling_rate, 1)
         omegas = omega * torch.arange(1, n_harmonic + 1).to(omega)
         signal_harmonics = (torch.sin(omegas) * amplitudes)
         signal_harmonics = signal_harmonics.transpose(1, 2)
@@ -592,7 +592,7 @@ class Generator_Noise(torch.nn.Module):
         super(Generator_Noise, self).__init__()
         self.hps = hps
         self.win_size = hps.data.win_size
-        self.hop_size = hps.data.hop_size
+        self.hop_size = hps.data.hop_length
         self.fft_size = hps.data.n_fft
         self.istft_pre = Conv1d(hps.model.hidden_channels, hps.model.hidden_channels, 3, padding=1)
 
@@ -814,12 +814,12 @@ class Discriminator(torch.nn.Module):
         discs = [DiscriminatorS(use_spectral_norm=use_spectral_norm)]
         discs = discs + [DiscriminatorP(i, use_spectral_norm=use_spectral_norm) for i in periods]
         self.discriminators = nn.ModuleList(discs)
-        self.disc_multfrequency = MultiFrequencyDiscriminator(hop_lengths=[int(hps.data.sample_rate * 2.5 / 1000),
-                                                                           int(hps.data.sample_rate * 5 / 1000),
-                                                                           int(hps.data.sample_rate * 7.5 / 1000),
-                                                                           int(hps.data.sample_rate * 10 / 1000),
-                                                                           int(hps.data.sample_rate * 12.5 / 1000),
-                                                                           int(hps.data.sample_rate * 15 / 1000)],
+        self.disc_multfrequency = MultiFrequencyDiscriminator(hop_lengths=[int(hps.data.sampling_rate * 2.5 / 1000),
+                                                                           int(hps.data.sampling_rate * 5 / 1000),
+                                                                           int(hps.data.sampling_rate * 7.5 / 1000),
+                                                                           int(hps.data.sampling_rate * 10 / 1000),
+                                                                           int(hps.data.sampling_rate * 12.5 / 1000),
+                                                                           int(hps.data.sampling_rate * 15 / 1000)],
                                                               hidden_channels=[256, 256, 256, 256, 256])
 
     def forward(self, y, y_hat):
@@ -977,8 +977,8 @@ class SynthesizerTrn(nn.Module):
         p_z = z
         p_z = self.dropout(p_z)
 
-        pitch = upsample(F0.transpose(1, 2), self.hps.data.hop_size)
-        omega = torch.cumsum(2 * math.pi * pitch / self.hps.data.sample_rate, 1)
+        pitch = upsample(F0.transpose(1, 2), self.hps.data.hop_length)
+        omega = torch.cumsum(2 * math.pi * pitch / self.hps.data.sampling_rate, 1)
         sin = torch.sin(omega).transpose(1, 2)
 
         # dsp synthesize
@@ -992,21 +992,22 @@ class SynthesizerTrn(nn.Module):
 
         # dsp based HiFiGAN vocoder
         x_slice, ids_slice = commons.rand_slice_segments(p_z, bn_lengths,
-                                                         self.hps.train.segment_size // self.hps.data.hop_size)
-        F0_slice = commons.slice_segments(F0, ids_slice, self.hps.train.segment_size // self.hps.data.hop_size)
-        dsp_slice = commons.slice_segments(dsp_o, ids_slice * self.hps.data.hop_size, self.hps.train.segment_size)
-        condition_slice = commons.slice_segments(decoder_condition, ids_slice * self.hps.data.hop_size,
+                                                         self.hps.train.segment_size // self.hps.data.hop_length)
+        F0_slice = commons.slice_segments(F0, ids_slice, self.hps.train.segment_size // self.hps.data.hop_length)
+        dsp_slice = commons.slice_segments(dsp_o, ids_slice * self.hps.data.hop_length, self.hps.train.segment_size)
+        condition_slice = commons.slice_segments(decoder_condition, ids_slice * self.hps.data.hop_length,
                                                  self.hps.train.segment_size)
         o = self.dec(x_slice, condition_slice.detach(), g=g)
 
         return o, ids_slice, LF0 * predict_bn_mask, dsp_slice.sum(1), loss_kl, \
                predict_mel, predict_bn_mask, pred_lf0, loss_f0, norm_f0
 
-    def infer(self, c, spk_id=None, F0=None,uv=None, pred_f0=False,mel=None, noise_scale=0.3):
-        if self.hps.data.n_speakers > 0:
-            g = self.emb_spk(spk_id).unsqueeze(-1)  # [b, h, 1]
-        else:
-            g = None
+    def infer(self, c, g=None, f0=None,uv=None, predict_f0=False, noice_scale=0.3):
+        if len(g.shape) == 2:
+            g = g.squeeze(0)
+        if len(f0.shape) == 2:
+            f0 = f0.unsqueeze(0)
+        g = self.emb_spk(g).unsqueeze(-1)  # [b, h, 1]
 
         c_lengths = (torch.ones(c.size(0)) * c.size(-1)).to(c.device)
 
@@ -1014,20 +1015,18 @@ class SynthesizerTrn(nn.Module):
         decoder_input, x_mask = self.text_encoder(c, c_lengths)
         y_lengths = c_lengths
 
-        LF0 = 2595. * torch.log10(1. + F0 / 700.)
+        LF0 = 2595. * torch.log10(1. + f0 / 700.)
         LF0 = LF0 / 500
 
-        if pred_f0:
+        if predict_f0:
             norm_f0 = utils.normalize_f0(LF0, x_mask, uv.squeeze(1))
             pred_lf0, predict_bn_mask = self.f0_decoder(decoder_input, norm_f0, y_lengths, spk_emb=g)
             pred_f0 = 700 * ( torch.pow(10, pred_lf0 * 500 / 2595) - 1)
-            F0 = pred_f0
+            f0 = pred_f0
             LF0 = pred_lf0
 
         # aam
         predict_mel, predict_bn_mask = self.mel_decoder(decoder_input + self.f0_prenet(LF0), y_lengths, spk_emb=g)
-        # pred_f0 = 700 * ( torch.pow(10, pred_post_lf0 * 500 / 2595) - 1)
-        # F0 = pred_f0
         predict_energy = predict_mel.sum(1).unsqueeze(1) / self.hps.data.acoustic_dim
 
         decoder_input = decoder_input + \
@@ -1040,17 +1039,17 @@ class SynthesizerTrn(nn.Module):
 
         m_p = prior_info[:, :self.hps.model.hidden_channels, :]
         logs_p = prior_info[:, self.hps.model.hidden_channels:, :]
-        z_p = m_p + torch.randn_like(m_p) * torch.exp(logs_p) * noise_scale
+        z_p = m_p + torch.randn_like(m_p) * torch.exp(logs_p) * noice_scale
         z = self.flow(z_p, y_mask, g=g, reverse=True)
 
         prior_z = z
 
         noise_x = self.dec_noise(prior_z, y_mask)
 
-        harm_x = self.dec_harm(F0, prior_z, y_mask)
+        harm_x = self.dec_harm(f0, prior_z, y_mask)
 
-        pitch = upsample(F0.transpose(1, 2), self.hps.data.hop_size)
-        omega = torch.cumsum(2 * math.pi * pitch / self.hps.data.sample_rate, 1)
+        pitch = upsample(f0.transpose(1, 2), self.hps.data.hop_length)
+        omega = torch.cumsum(2 * math.pi * pitch / self.hps.data.sampling_rate, 1)
         sin = torch.sin(omega).transpose(1, 2)
 
         decoder_condition = torch.cat([harm_x, noise_x, sin], axis=1)
@@ -1058,4 +1057,4 @@ class SynthesizerTrn(nn.Module):
         # dsp based HiFiGAN vocoder
         o = self.dec(prior_z, decoder_condition, g=g)
 
-        return o, harm_x.sum(1).unsqueeze(1), noise_x, F0
+        return o, harm_x.sum(1).unsqueeze(1), noise_x, f0

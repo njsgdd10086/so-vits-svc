@@ -23,7 +23,7 @@ class BaseDataset(torch.utils.data.Dataset):
         random.seed(hparams.train.seed)
         random.shuffle(self.fileid_list)
         if (hparams.data.n_speakers > 0):
-            self.spk2id = hparams.data.spk2id
+            self.spk2id = hparams.spk
 
     def get_fileid_list(self, fileid_list_path):
         fileid_list = []
@@ -120,7 +120,7 @@ class SingDataset(BaseDataset):
 
         acc_duration = np.cumsum(gtdurs)
         acc_duration = np.pad(acc_duration, (1, 0), 'constant', constant_values=(0,))
-        acc_duration_frames = np.ceil(acc_duration / (self.hps.data.hop_size / self.hps.data.sample_rate))
+        acc_duration_frames = np.ceil(acc_duration / (self.hps.data.hop_length / self.hps.data.sampling_rate))
         gtdurs = acc_duration_frames[1:] - acc_duration_frames[:-1]
 
         # new_phos = []
@@ -144,10 +144,10 @@ class SingDataset(BaseDataset):
         spkid = self.spk2id[spk]
 
         wav = load_wav(wav_path,
-                       raw_sr=self.hparams.data.sample_rate,
-                       target_sr=self.hparams.data.sample_rate,
+                       raw_sr=self.hparams.data.sampling_rate,
+                       target_sr=self.hparams.data.sampling_rate,
                        win_size=self.hparams.data.win_size,
-                       hop_size=self.hparams.data.hop_size)
+                       hop_size=self.hparams.data.hop_length)
 
         mel_path = wav_path + ".mel.npy"
         if not os.path.exists(mel_path):
@@ -156,7 +156,7 @@ class SingDataset(BaseDataset):
         else:
             mel = np.load(mel_path)
 
-        if mel.shape[0] < 60:
+        if mel.shape[0] < 30:
             print("skip short audio:", self.fileid_list[index])
             return None
         assert mel.shape[1] == 80
@@ -177,14 +177,14 @@ class SingDataset(BaseDataset):
         uv = torch.FloatTensor(uv).reshape([1, -1])
 
         wav = wav.reshape(-1)
-        if (wav.shape[0] != sum_dur * self.hparams.data.hop_size):
-            if (abs(wav.shape[0] - sum_dur * self.hparams.data.hop_size) > 3 * self.hparams.data.hop_size):
+        if (wav.shape[0] != sum_dur * self.hparams.data.hop_length):
+            if (abs(wav.shape[0] - sum_dur * self.hparams.data.hop_length) > 3 * self.hparams.data.hop_length):
                 print("dataset error wav : ", wav.shape, sum_dur)
                 return None
-            if (wav.shape[0] > sum_dur * self.hparams.data.hop_size):
-                wav = wav[:sum_dur * self.hparams.data.hop_size]
+            if (wav.shape[0] > sum_dur * self.hparams.data.hop_length):
+                wav = wav[:sum_dur * self.hparams.data.hop_length]
             else:
-                wav = np.concatenate([wav, np.zeros([sum_dur * self.hparams.data.hop_size - wav.shape[0]])], axis=0)
+                wav = np.concatenate([wav, np.zeros([sum_dur * self.hparams.data.hop_length - wav.shape[0]])], axis=0)
         wav = torch.FloatTensor(wav).reshape([1, -1])
 
         c_path = wav_path + ".soft.pt"
@@ -200,7 +200,7 @@ class SingDataset(BaseDataset):
             f0 = f0[:, start:end]
             uv = uv[:, start:end]
             c = c[:, start:end]
-            wav = wav[:, start*self.hparams.data.hop_size:end*self.hparams.data.hop_size]
+            wav = wav[:, start*self.hparams.data.hop_length:end*self.hparams.data.hop_length]
         return c, mel, f0, wav, spkid, uv
 
 

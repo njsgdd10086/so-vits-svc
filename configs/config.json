@@ -19,7 +19,6 @@
     "init_lr_ratio": 1,
     "warmup_epochs": 0,
     "c_mel": 45,
-    "save_dir": "logdir/sovits4",
     "keep_ckpts":4
   },
   "data": {
@@ -29,11 +28,11 @@
     "training_filelist": "filelists/train.txt",
     "validation_filelist": "filelists/val.txt",
     "max_wav_value": 32768.0,
-    "sample_rate": 44100,
+    "sampling_rate": 44100,
     "n_fft": 2048,
     "fmin": 0,
     "fmax": 22050,
-    "hop_size": 512,
+    "hop_length": 512,
     "win_size": 2048,
     "acoustic_dim": 80,
     "c_dim": 256,
@@ -41,15 +40,7 @@
     "ref_level_db": 20,
     "min_db": -115,
     "max_abs_value": 4.0,
-    "n_speakers": 200,
-    "spk2id": {
-      "jishuang": 0,
-      "huiyu": 1,
-      "nen": 2,
-      "paimon": 3,
-      "yunhao": 4
-    }
-
+    "n_speakers": 200
   },
   "model": {
     "hidden_channels": 192,
@@ -104,5 +95,12 @@
     ],
     "n_harmonic": 64,
     "n_bands": 65
+  },
+  "spk": {
+    "jishuang": 0,
+    "huiyu": 1,
+    "nen": 2,
+    "paimon": 3,
+    "yunhao": 4
   }
 }

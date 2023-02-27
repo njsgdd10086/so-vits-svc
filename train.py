@@ -62,13 +62,13 @@ def main():
 def run(rank, n_gpus, hps):
     global global_step
     if rank == 0:
-        logger = utils.get_logger(hps.train.save_dir)
+        logger = utils.get_logger(hps.model_dir)
         logger.info(hps.train)
         logger.info(hps.data)
         logger.info(hps.model)
-        utils.check_git_hash(hps.train.save_dir)
-        writer = SummaryWriter(log_dir=hps.train.save_dir)
-        writer_eval = SummaryWriter(log_dir=os.path.join(hps.train.save_dir, "eval"))
+        utils.check_git_hash(hps.model_dir)
+        writer = SummaryWriter(log_dir=hps.model_dir)
+        writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "eval"))
 
     dist.init_process_group(backend='nccl', init_method='env://', world_size=n_gpus, rank=rank)
     torch.manual_seed(hps.train.seed)
@@ -96,9 +96,9 @@ def run(rank, n_gpus, hps):
     net_d = DDP(net_d, device_ids=[rank], find_unused_parameters=True)
     skip_optimizer = True
     try:
-        _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.train.save_dir, "G_*.pth"), net_g,
+        _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g,
                                                    optim_g, skip_optimizer)
-        _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.train.save_dir, "D_*.pth"), net_d,
+        _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d,
                                                    optim_d, skip_optimizer)
         global_step = (epoch_str - 1) * len(train_loader)
     except:
@@ -126,13 +126,13 @@ def run(rank, n_gpus, hps):
 def cpurun(rank, n_gpus, hps):
     global global_step
     if rank == 0:
-        logger = utils.get_logger(hps.train.save_dir)
+        logger = utils.get_logger(hps.model_dir)
         logger.info(hps.train)
         logger.info(hps.data)
         logger.info(hps.model)
-        utils.check_git_hash(hps.train.save_dir)
-        writer = SummaryWriter(log_dir=hps.train.save_dir)
-        writer_eval = SummaryWriter(log_dir=os.path.join(hps.train.save_dir, "eval"))
+        utils.check_git_hash(hps.model_dir)
+        writer = SummaryWriter(log_dir=hps.model_dir)
+        writer_eval = SummaryWriter(log_dir=os.path.join(hps.model_dir, "eval"))
     torch.manual_seed(hps.train.seed)
     dataset_constructor = DatasetConstructor(hps, num_replicas=n_gpus, rank=rank)
 
@@ -155,9 +155,9 @@ def cpurun(rank, n_gpus, hps):
         eps=hps.train.eps)
     skip_optimizer = True
     try:
-        _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.train.save_dir, "G_*.pth"), net_g,
+        _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "G_*.pth"), net_g,
                                                    optim_g, skip_optimizer)
-        _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.train.save_dir, "D_*.pth"), net_d,
+        _, _, _, epoch_str = utils.load_checkpoint(utils.latest_checkpoint_path(hps.model_dir, "D_*.pth"), net_d,
                                                    optim_d, skip_optimizer)
         global_step = (epoch_str - 1) * len(train_loader)
     except:
@@ -220,13 +220,13 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, loaders, logg
         y_ddsp = y_ddsp.unsqueeze(1)
 
         # Discriminator
-        y = commons.slice_segments(wav, ids_slice * hps.data.hop_size, hps.train.segment_size)  # slice
+        y = commons.slice_segments(wav, ids_slice * hps.data.hop_length, hps.train.segment_size)  # slice
         y_ddsp_mel = mel_spectrogram_torch(
             y_ddsp.squeeze(1),
             hps.data.n_fft,
             hps.data.acoustic_dim,
-            hps.data.sample_rate,
-            hps.data.hop_size,
+            hps.data.sampling_rate,
+            hps.data.hop_length,
             hps.data.win_size,
             hps.data.fmin,
             hps.data.fmax
@@ -235,16 +235,16 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, loaders, logg
         y_logspec = torch.log(spectrogram_torch(
             y.squeeze(1),
             hps.data.n_fft,
-            hps.data.sample_rate,
-            hps.data.hop_size,
+            hps.data.sampling_rate,
+            hps.data.hop_length,
             hps.data.win_size
         ) + 1e-7)
 
         y_ddsp_logspec = torch.log(spectrogram_torch(
             y_ddsp.squeeze(1),
             hps.data.n_fft,
-            hps.data.sample_rate,
-            hps.data.hop_size,
+            hps.data.sampling_rate,
+            hps.data.hop_length,
             hps.data.win_size
         ) + 1e-7)
 
@@ -252,8 +252,8 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, loaders, logg
             y.squeeze(1),
             hps.data.n_fft,
             hps.data.acoustic_dim,
-            hps.data.sample_rate,
-            hps.data.hop_size,
+            hps.data.sampling_rate,
+            hps.data.hop_length,
             hps.data.win_size,
             hps.data.fmin,
             hps.data.fmax
@@ -262,8 +262,8 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, loaders, logg
             y_hat.squeeze(1),
             hps.data.n_fft,
             hps.data.acoustic_dim,
-            hps.data.sample_rate,
-            hps.data.hop_size,
+            hps.data.sampling_rate,
+            hps.data.hop_length,
             hps.data.win_size,
             hps.data.fmin,
             hps.data.fmax
@@ -305,7 +305,7 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, loaders, logg
 
         if rank == 0:
             if (global_step + 1) % (hps.train.accumulation_steps * 10) == 0:
-                logger.info(["step&time", global_step, time.asctime(time.localtime(time.time()))])
+                print(["step&time&loss", global_step, time.asctime(time.localtime(time.time())), loss_gen_all])
 
             if global_step % hps.train.log_interval == 0:
                 lr = optim_g.param_groups[0]['lr']
@@ -349,9 +349,9 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, loaders, logg
 
                 evaluate(hps, net_g, eval_loader, writer_eval)
                 utils.save_checkpoint(net_g, optim_g, hps.train.learning_rate, epoch,
-                                      os.path.join(hps.train.save_dir, "G_{}.pth".format(global_step)))
+                                      os.path.join(hps.model_dir, "G_{}.pth".format(global_step)))
                 utils.save_checkpoint(net_d, optim_d, hps.train.learning_rate, epoch,
-                                      os.path.join(hps.train.save_dir, "D_{}.pth".format(global_step)))
+                                      os.path.join(hps.model_dir, "D_{}.pth".format(global_step)))
                 keep_ckpts = getattr(hps.train, 'keep_ckpts', 0)
                 if keep_ckpts > 0:
                     utils.clean_checkpoints(path_to_models=hps.model_dir, n_ckpts_to_keep=keep_ckpts, sort_by_time=True)
@@ -395,16 +395,16 @@ def evaluate(hps, generator, eval_loader, writer_eval):
             f0 = f0[:1]
             spkid = spkid[:1]
             if use_cuda:
-                y_hat, y_harm, y_noise, _ = generator.module.infer(c, F0=f0,uv=uv, spk_id=spkid,mel=mel)
+                y_hat, y_harm, y_noise, _ = generator.module.infer(c, f0=f0,uv=uv, g=spkid)
             else:
-                y_hat, y_harm, y_noise, _ = generator.infer(c, F0=f0,uv=uv, spk_id=spkid,mel=mel)
+                y_hat, y_harm, y_noise, _ = generator.infer(c, f0=f0,uv=uv, g=spkid)
 
             y_hat_mel = mel_spectrogram_torch(
                 y_hat.squeeze(1),
                 hps.data.n_fft,
                 hps.data.acoustic_dim,
-                hps.data.sample_rate,
-                hps.data.hop_size,
+                hps.data.sampling_rate,
+                hps.data.hop_length,
                 hps.data.win_size,
                 hps.data.fmin,
                 hps.data.fmax
@@ -426,7 +426,7 @@ def evaluate(hps, generator, eval_loader, writer_eval):
         global_step=global_step,
         images=image_dict,
         audios=audio_dict,
-        audio_sampling_rate=hps.data.sample_rate
+        audio_sampling_rate=hps.data.sampling_rate
     )
     generator.train()
 
