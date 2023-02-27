@@ -115,9 +115,9 @@ class Svc(object):
             self.dev = torch.device(device)
         self.net_g_ms = None
         self.hps_ms = utils.get_hparams_from_file(config_path)
-        self.target_sample = self.hps_ms.data.sampling_rate
-        self.hop_size = self.hps_ms.data.hop_length
-        self.spk2id = self.hps_ms.spk
+        self.target_sample = self.hps_ms.data.sample_rate
+        self.hop_size = self.hps_ms.data.hop_size
+        self.spk2id = self.hps_ms.data.spk2id
         # 加载hubert
         self.hubert_model = utils.get_hubert_model().to(self.dev)
         self.load_model()
@@ -127,9 +127,7 @@ class Svc(object):
     def load_model(self):
         # 获取模型配置
         self.net_g_ms = SynthesizerTrn(
-            self.hps_ms.data.filter_length // 2 + 1,
-            self.hps_ms.train.segment_size // self.hps_ms.data.hop_length,
-            **self.hps_ms.model)
+            self.hps_ms)
         _ = utils.load_checkpoint(self.net_g_path, self.net_g_ms, None)
         if "half" in self.net_g_path and torch.cuda.is_available():
             _ = self.net_g_ms.half().eval().to(self.dev)
@@ -168,13 +166,13 @@ class Svc(object):
               auto_predict_f0=False,
               noice_scale=0.4):
         speaker_id = self.spk2id[speaker]
-        sid = torch.LongTensor([int(speaker_id)]).to(self.dev).unsqueeze(0)
+        sid = torch.LongTensor([int(speaker_id)]).to(self.dev)
         c, f0, uv = self.get_unit_f0(raw_path, tran, cluster_infer_ratio, speaker)
         if "half" in self.net_g_path and torch.cuda.is_available():
             c = c.half()
         with torch.no_grad():
             start = time.time()
-            audio = self.net_g_ms.infer(c, f0=f0, g=sid, uv=uv, predict_f0=auto_predict_f0, noice_scale=noice_scale)[0,0].data.float()
+            audio = self.net_g_ms.infer(c, F0=f0.unsqueeze(0), spk_id=sid, uv=uv, pred_f0=auto_predict_f0, noise_scale=noice_scale)[0][0,0].data.float()
             use_time = time.time() - start
             print("vits use time:{}".format(use_time))
         return audio, audio.shape[-1]
