@@ -151,7 +151,7 @@ class SingDataset(BaseDataset):
 
         mel_path = wav_path + ".mel.npy"
         if not os.path.exists(mel_path):
-            mel = audio.melspectrogram(wav, self.hparams).astype(np.float32).T
+            mel = audio.melspectrogram(wav, self.hparams.data).astype(np.float32).T
             np.save(mel_path, mel)
         else:
             mel = np.load(mel_path)

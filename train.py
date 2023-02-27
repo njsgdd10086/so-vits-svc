@@ -21,7 +21,7 @@ sys.path.append('../..')
 import modules.commons as commons
 import utils
 
-from dataset import DatasetConstructor
+from data_utils import DatasetConstructor
 
 from models import (
     SynthesizerTrn,
@@ -336,7 +336,7 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, loaders, logg
                     images=image_dict)
 
             if global_step % hps.train.eval_interval == 0:
-                logger.info(['All training params(G): ', utils.count_parameters(net_g), ' M'])
+                # logger.info(['All training params(G): ', utils.count_parameters(net_g), ' M'])
                 # print('Sub training params(G): ', \
                 #      'text_encoder: ', utils.count_parameters(net_g.module.text_encoder), ' M, ', \
                 #      'decoder: ', utils.count_parameters(net_g.module.decoder), ' M, ', \

@@ -943,8 +943,7 @@ class SynthesizerTrn(nn.Module):
 
         LF0 = 2595. * torch.log10(1. + F0 / 700.)
         LF0 = LF0 / 500
-
-        norm_f0 = utils.utils.normalize_f0(LF0, uv)*x_mask
+        norm_f0 = utils.normalize_f0(LF0,x_mask, uv.squeeze(1),random_scale=True)
         pred_lf0, predict_bn_mask = self.f0_decoder(decoder_input, norm_f0, bn_lengths, spk_emb=g)
         # print(pred_lf0)
         loss_f0 = F.mse_loss(pred_lf0, LF0)
@@ -1003,7 +1002,7 @@ class SynthesizerTrn(nn.Module):
         return o, ids_slice, LF0 * predict_bn_mask, dsp_slice.sum(1), loss_kl, \
                predict_mel, predict_bn_mask, pred_lf0, loss_f0, norm_f0
 
-    def infer(self, c, spk_id=None, F0=None,uv=None, pred_f0=True,mel=None, noise_scale=0.3):
+    def infer(self, c, spk_id=None, F0=None,uv=None, pred_f0=False,mel=None, noise_scale=0.3):
         if self.hps.data.n_speakers > 0:
             g = self.emb_spk(spk_id).unsqueeze(-1)  # [b, h, 1]
         else:
@@ -1019,7 +1018,7 @@ class SynthesizerTrn(nn.Module):
         LF0 = LF0 / 500
 
         if pred_f0:
-            norm_f0 = utils.normalize_f0(LF0, uv)
+            norm_f0 = utils.normalize_f0(LF0, x_mask, uv.squeeze(1))
             pred_lf0, predict_bn_mask = self.f0_decoder(decoder_input, norm_f0, y_lengths, spk_emb=g)
             pred_f0 = 700 * ( torch.pow(10, pred_lf0 * 500 / 2595) - 1)
             F0 = pred_f0
