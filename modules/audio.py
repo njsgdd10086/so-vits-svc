@@ -36,8 +36,8 @@ _inv_mel_basis = None
 
 
 def _build_mel_basis(hparams):
-    assert hparams.fmax <= hparams.sample_rate // 2
-    return librosa.filters.mel(hparams.sample_rate,
+    assert hparams.fmax <= hparams.sampling_rate // 2
+    return librosa.filters.mel(hparams.sampling_rate,
                                hparams.n_fft,
                                n_mels=hparams.acoustic_dim,
                                fmin=hparams.fmin,
@@ -61,7 +61,7 @@ def _mel_to_linear(mel_spectrogram, hparams):
 def _stft(y, hparams):
     return librosa.stft(y=y,
                         n_fft=hparams.n_fft,
-                        hop_length=hparams.hop_size,
+                        hop_length=hparams.hop_length,
                         win_length=hparams.win_size)
 
 
@@ -80,13 +80,13 @@ def _db_to_amp(x):
 def _stft(y, hparams):
     return librosa.stft(y=y,
                         n_fft=hparams.n_fft,
-                        hop_length=hparams.hop_size,
+                        hop_length=hparams.hop_length,
                         win_length=hparams.win_size)
 
 
 def _istft(y, hparams):
     return librosa.istft(y,
-                         hop_length=hparams.hop_size,
+                         hop_length=hparams.hop_length,
                          win_length=hparams.win_size)
 
 

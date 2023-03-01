@@ -814,13 +814,13 @@ class Discriminator(torch.nn.Module):
         discs = [DiscriminatorS(use_spectral_norm=use_spectral_norm)]
         discs = discs + [DiscriminatorP(i, use_spectral_norm=use_spectral_norm) for i in periods]
         self.discriminators = nn.ModuleList(discs)
-        self.disc_multfrequency = MultiFrequencyDiscriminator(hop_lengths=[int(hps.data.sampling_rate * 2.5 / 1000),
-                                                                           int(hps.data.sampling_rate * 5 / 1000),
-                                                                           int(hps.data.sampling_rate * 7.5 / 1000),
-                                                                           int(hps.data.sampling_rate * 10 / 1000),
-                                                                           int(hps.data.sampling_rate * 12.5 / 1000),
-                                                                           int(hps.data.sampling_rate * 15 / 1000)],
-                                                              hidden_channels=[256, 256, 256, 256, 256])
+        # self.disc_multfrequency = MultiFrequencyDiscriminator(hop_lengths=[int(hps.data.sampling_rate * 2.5 / 1000),
+        #                                                                    int(hps.data.sampling_rate * 5 / 1000),
+        #                                                                    int(hps.data.sampling_rate * 7.5 / 1000),
+        #                                                                    int(hps.data.sampling_rate * 10 / 1000),
+        #                                                                    int(hps.data.sampling_rate * 12.5 / 1000),
+        #                                                                    int(hps.data.sampling_rate * 15 / 1000)],
+        #                                                       hidden_channels=[256, 256, 256, 256, 256])
 
     def forward(self, y, y_hat):
         y_d_rs = []
@@ -834,13 +834,13 @@ class Discriminator(torch.nn.Module):
             y_d_gs.append(y_d_g)
             fmap_rs.append(fmap_r)
             fmap_gs.append(fmap_g)
-        scores_r, fmaps_r = self.disc_multfrequency(y)
-        scores_g, fmaps_g = self.disc_multfrequency(y_hat)
-        for i in range(len(scores_r)):
-            y_d_rs.append(scores_r[i])
-            y_d_gs.append(scores_g[i])
-            fmap_rs.append(fmaps_r[i])
-            fmap_gs.append(fmaps_g[i])
+        # scores_r, fmaps_r = self.disc_multfrequency(y)
+        # scores_g, fmaps_g = self.disc_multfrequency(y_hat)
+        # for i in range(len(scores_r)):
+        #     y_d_rs.append(scores_r[i])
+        #     y_d_gs.append(scores_g[i])
+        #     fmap_rs.append(fmaps_r[i])
+        #     fmap_gs.append(fmaps_g[i])
         return y_d_rs, y_d_gs, fmap_rs, fmap_gs
 
 
