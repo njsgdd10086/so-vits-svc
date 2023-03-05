@@ -193,9 +193,9 @@ class SingDataset(BaseDataset):
 
         assert f0.shape[1] == mel.shape[1]
 
-        if mel.shape[1] > 800:
-            start = random.randint(0, mel.shape[1]-800)
-            end = start + 790
+        if mel.shape[1] > 550:
+            start = random.randint(0, mel.shape[1]-550)
+            end = start + 540
             mel = mel[:, start:end]
             f0 = f0[:, start:end]
             uv = uv[:, start:end]
