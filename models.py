@@ -928,7 +928,7 @@ class SynthesizerTrn(nn.Module):
         self.energy_prenet = nn.Conv1d(1, hps.model.prior_hidden_channels , 3, padding=1)
         self.mel_prenet = nn.Conv1d(hps.data.acoustic_dim, hps.model.prior_hidden_channels , 3, padding=1)
 
-        if hps.data.n_speakers > 1:
+        if hps.data.n_speakers > 0:
             self.emb_spk = nn.Embedding(hps.data.n_speakers, hps.model.spk_channels)
         self.flow = modules.ResidualCouplingBlock(hps.model.prior_hidden_channels, hps.model.hidden_channels, 5, 1, 4,n_speakers=hps.data.n_speakers, gin_channels=hps.model.spk_channels)
 
