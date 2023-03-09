@@ -167,6 +167,7 @@ class Svc(object):
               cluster_infer_ratio=0,
               auto_predict_f0=False,
               noice_scale=0.4):
+        speaker_id = self.spk2id.__dict__.get(speaker)
         if not speaker_id and type(speaker) is int:
             if len(self.spk2id.__dict__) >= speaker:
                 speaker_id = speaker
